@@ -1,9 +1,14 @@
+import os
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
 # Змінна для збереження стану світла
 light_status = {"state": "OFF"}
+
+@app.route("/")
+def home():
+    return jsonify({"message": "Сервер працює! Використовуйте /set та /get."})
 
 @app.route("/set", methods=["POST"])
 def set_light():
@@ -19,4 +24,5 @@ def get_light():
     return jsonify(light_status)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))  # Отримуємо PORT з оточення
+    app.run(host="0.0.0.0", port=port)
