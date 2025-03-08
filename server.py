@@ -1,40 +1,70 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 
 app = Flask(__name__)
 
-# Змінна для збереження стану світла
-light_status = {"state": "OFF"}
+# Стан машинки
+car_status = {"command": "stop"}
 
-# Обробка POST-запиту для зміни стану
-@app.route("/set", methods=["POST", "GET"])
-def set_light():
-    global light_status
-    
-    if request.method == "POST":
-        # Отримуємо дані у форматі JSON
-        data = request.get_json()
-        if "state" in data and data["state"] in ["ON", "OFF"]:
-            light_status["state"] = data["state"]
-            return jsonify({"message": "Status updated"}), 200
-        return jsonify({"error": "Invalid request"}), 400
+# HTML-код з чекбоксами
+HTML_PAGE = """
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Керування машинкою</title>
+    <style>
+        body { text-align: center; font-family: Arial, sans-serif; margin-top: 50px; }
+        label { display: block; font-size: 20px; margin: 10px; }
+        input { width: 20px; height: 20px; }
+    </style>
+</head>
+<body>
+    <h2>Керування машинкою</h2>
+    <label><input type="checkbox" id="forward" onchange="updateCommand()"> Вперед</label>
+    <label><input type="checkbox" id="backward" onchange="updateCommand()"> Назад</label>
+    <label><input type="checkbox" id="left" onchange="updateCommand()"> Вліво</label>
+    <label><input type="checkbox" id="right" onchange="updateCommand()"> Вправо</label>
 
-    # Дозволяємо зміну стану через GET-запит (з параметром в URL)
-    if request.method == "GET":
-        state = request.args.get("state")
-        if state in ["ON", "OFF"]:
-            light_status["state"] = state
-            return jsonify({"message": f"Light is now {state}"}), 200
-        return jsonify({"error": "Missing or invalid 'state' parameter"}), 400
+    <script>
+        function updateCommand() {
+            let commands = [];
+            if (document.getElementById("forward").checked) commands.push("forward");
+            if (document.getElementById("backward").checked) commands.push("backward");
+            if (document.getElementById("left").checked) commands.push("left");
+            if (document.getElementById("right").checked) commands.push("right");
 
-# Отримання поточного стану лампочки
+            let command = commands.length > 0 ? commands.join("+") : "stop";
+            fetch('/set', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: command })
+            }).then(response => response.json())
+              .then(data => console.log(data))
+              .catch(error => console.error(error));
+        }
+    </script>
+</body>
+</html>
+"""
+
+# Головна сторінка
+@app.route("/")
+def home():
+    return render_template_string(HTML_PAGE)
+
+# Обробка команди від чекбоксів
+@app.route("/set", methods=["POST"])
+def set_car():
+    global car_status
+    data = request.get_json()
+    car_status["command"] = data.get("command", "stop")
+    return jsonify({"message": f"Car is now {car_status['command']}"}), 200
+
+# Отримання поточного стану
 @app.route("/get", methods=["GET"])
-def get_light():
-    return jsonify(light_status)
+def get_car():
+    return jsonify(car_status)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Отримуємо PORT з оточення
-    app.run(host="0.0.0.0", port=port)
